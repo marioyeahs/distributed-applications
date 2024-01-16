@@ -2,7 +2,7 @@ import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
 
-public class ServidorChat {
+public class ServidorenJava {
 
     private static final int PORT = 12345;
     private static ArrayList<PrintWriter> clientes = new ArrayList<>();
