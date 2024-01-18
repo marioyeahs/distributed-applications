@@ -1,15 +1,69 @@
-from flask import Flask, render_template, request, redirect, url_for
+import os
+from flask import Flask, Response, flash, request, redirect, url_for, send_from_directory
+from werkzeug.utils import secure_filename
+import asyncio
+from json import dumps
+import websockets
+from websockets.exceptions import ConnectionClosedOK
 
-UPLOAD_FOLDER = 'static/uploads/'
+UPLOAD_FOLDER = './uploads'
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+headers ={'Access-Control-Allow-Origin': '*'}
 
 app = Flask(__name__)
-app.secret_key = "secret key"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.add_url_rule(
+    "/uploads/<name>", endpoint="download_file", build_only=True
+)
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    if request.method == "POST":
-        name = request.form.get("name","wrld")
-        return render_template("greet.html", name=name)
-    return render_template("index.html")
+def allowed_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/', methods=['GET', 'POST'])
+def upload_file():
+    if request.method == 'POST':
+        # check if the post request has the file part
+        if 'file' not in request.files:
+            flash('No file part')
+            return redirect(request.url)
+        file = request.files['file']
+        # If the user does not select a file, the browser submits an
+        # empty file without a filename.
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            return redirect(url_for('download_file', name=filename))
+    return '''
+    <!doctype html>
+    <title>Selecciona el archivo</title>
+    <h1>Carga un nuevo archivo</h1>
+    <form method=post enctype=multipart/form-data>
+      <input type=file name=file>
+      <input type=submit value=Cargar>
+    </form>
+    '''
+
+@app.route('/uploads/<name>')
+def download_file(name):
+    return send_from_directory(app.config["UPLOAD_FOLDER"], name)
+
+
+@app.route('/client')
+async def client():
+    uri = "ws://localhost:8765"
+    async with websockets.connect(uri) as websocket:
+        
+        await websocket.send("Hola, servidor!")
+        response = await websocket.recv()
+        return Response(response=dumps({'response':response}), headers=headers, status = 200)
+
+
+
+
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0')
