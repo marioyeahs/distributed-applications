@@ -54,12 +54,13 @@ def download_file(name):
 
 @app.route('/client')
 async def client():
-    uri = "ws://localhost:8765"
+    uri = "ws://localhost:5555"
     async with websockets.connect(uri) as websocket:
-        
-        await websocket.send("Hola, servidor!")
-        response = await websocket.recv()
-        return Response(response=dumps({'response':response}), headers=headers, status = 200)
+        with open("./uploads/video.mp4", 'rb') as file:
+            data = file.read()
+            await websocket.send(data)
+        return Response(response=dumps({'response':"Video descargado correctamente"}), headers=headers, status = 200)
+
 
 
 
@@ -67,3 +68,4 @@ async def client():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
+    
